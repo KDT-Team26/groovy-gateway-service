@@ -1,0 +1,40 @@
+plugins {
+	id 'java'
+	// Spring Cloud 2025.1.2가 검증한 Spring Boot 버전이 4.0.7이다(backend/build.gradle의
+	// 4.1.0이 아님). 이 서비스만 예외적으로 4.0.7에 고정한다 — 마이크로서비스 하나하나가
+	// 독립적인 배포 트레인을 가질 수 있음을 보여주는 지점이기도 하다. 나머지 5개 서비스는
+	// 계속 4.1.0을 쓴다(각자 도메인 로직만 있고 Spring Cloud에 의존하지 않으므로 문제 없음).
+	id 'org.springframework.boot' version '4.0.7'
+	id 'io.spring.dependency-management'
+}
+
+dependencyManagement {
+	imports {
+		mavenBom "org.springframework.cloud:spring-cloud-dependencies:2025.1.2"
+	}
+}
+
+// spring-cloud-starter-gateway-server-webmvc: 서블릿(MVC) 기반 Gateway. groovy 레거시와
+// 나머지 5개 서비스가 전부 WebFlux 없이 서블릿 스택이라 스택을 통일하기 위해 반응형(WebFlux)
+// 버전이 아닌 이 MVC 버전을 선택했다. spring-boot-starter-web을 전이 의존성으로 포함한다.
+dependencies {
+	implementation 'org.springframework.cloud:spring-cloud-starter-gateway-server-webmvc'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+	// MSA 전환 Phase 12: 분산 트레이싱 (legacy build.gradle 주석 참고 — 같은 이유로 별도 모듈 추가).
+	// 4.0.7에도 이 모듈들이 존재함을 Maven Central에서 확인했다.
+	implementation 'org.springframework.boot:spring-boot-micrometer-tracing'
+	implementation 'org.springframework.boot:spring-boot-opentelemetry'
+	implementation 'io.micrometer:micrometer-tracing-bridge-otel'
+	implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
+	implementation 'io.micrometer:micrometer-registry-prometheus'
+
+	implementation project(':libs:observability')
+
+	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}

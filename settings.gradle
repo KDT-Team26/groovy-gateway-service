@@ -1,0 +1,5 @@
+rootProject.name = 'groovy-gateway-service'
+
+include 'libs:observability'
+
+include 'services:api-gateway'

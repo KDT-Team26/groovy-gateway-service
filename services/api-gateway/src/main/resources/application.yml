@@ -1,0 +1,94 @@
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      server:
+        webmvc:
+          routes:
+            # MSA 전환 완료: 5개 도메인(Notification/User·Auth·Tag/Study/Calendar/Memoir)이 전부
+            # 서비스로 추출됐고, legacy-monolith(groovy/)는 삭제됐다. 더 구체적인 경로가 위에 오고
+            # (YAML 리스트 순서 = 매칭 우선순위), 그 외 나머지 경로는 매칭되는 라우트가 없으면
+            # 게이트웨이가 그대로 404를 반환한다.
+            - id: notification-service
+              uri: http://notification-service:8085
+              predicates:
+                - Path=/api/notifications/**
+            # MSA 전환(identity-service 추출): 인증(회원가입/로그인/로그아웃)이 여기로 온다.
+            - id: identity-service-auth
+              uri: http://identity-service:8081
+              predicates:
+                - Path=/api/auth/**
+            # "/api/users/me"는 exact match(뒤에 /**가 없다)라 "/api/users/me/studies",
+            # "/api/users/me/applications"는 매칭되지 않고 아래 study-service 라우트로 간다.
+            - id: identity-service-users-me
+              uri: http://identity-service:8081
+              predicates:
+                - Path=/api/users/me
+            # MSA 전환(study-service 추출): 스터디 CRUD/신청/대기열이 여기로 온다. "/api/users/me/
+            # studies", "/api/users/me/applications"(Study 데이터를 반환하는 마이페이지 엔드포인트,
+            # backend/services/study-service/.../controller/UserStudyController.java 참고)도
+            # study-service 소유가 됐으므로 함께 라우팅한다.
+            - id: study-service
+              uri: http://study-service:8082
+              predicates:
+                - Path=/api/studies/**
+            - id: study-service-users-me-studies
+              uri: http://study-service:8082
+              predicates:
+                - Path=/api/users/me/studies
+            - id: study-service-users-me-applications
+              uri: http://study-service:8082
+              predicates:
+                - Path=/api/users/me/applications
+            # MSA 전환(calendar-service 추출): 캘린더(개인 일정 + 스터디 약속)가 여기로 온다.
+            - id: calendar-service
+              uri: http://calendar-service:8084
+              predicates:
+                - Path=/api/calendars/**
+            # MSA 전환(content-service 추출): 회고록(+댓글/좋아요)이 여기로 온다.
+            - id: content-service
+              uri: http://content-service:8083
+              predicates:
+                - Path=/api/memoirs/**
+            # MSA 전환(Tag 소유권 확정): 태그 마스터 목록 + 선호 태그가 identity-service로 온다.
+            - id: identity-service-tags
+              uri: http://identity-service:8081
+              predicates:
+                - Path=/api/tags/**
+
+server:
+  port: 8080
+
+management:
+  # actuator를 별도 포트로 분리한다 — 매칭되는 라우트가 없는 경로(예: /actuator/health)는
+  # 게이트웨이가 404를 반환할 뿐 다른 서비스로 흘러가지 않지만, 그래도 관례상 actuator는
+  # 라우팅 대상 포트와 분리해둔다.
+  server:
+    port: 8090
+  # Phase 12: 각 서비스 application.yml과 동일한 이유(TracingConfig 참고). 게이트웨이가 요청의
+  # 진입점이므로 여기서 새 트레이스가 시작되고, 하위 라우트(각 백엔드 서비스)로
+  # W3C traceparent 헤더를 통해 전파된다.
+  otlp:
+    tracing:
+      endpoint: ${OTLP_TRACING_ENDPOINT:http://tempo:4318/v1/traces}
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  endpoint:
+    health:
+      show-details: always
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
