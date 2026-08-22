@@ -1,10 +1,9 @@
 # groovy-gateway-service
 
-## 1. 이 레포는 무엇인가
+## 1. Repo: groovy-gateway-service
 
 **Groovy**는 태그 기반으로 스터디 그룹을 매칭하고, 참여 신청/승인, 캘린더 일정 관리, 회고록 공유,
-실시간 알림까지 지원하는 스터디 커뮤니티 플랫폼입니다. 백엔드는 하나의 Spring Boot 모놀리스에서
-도메인별 마이크로서비스로 전환되었고, 지금은 서비스별 폴리레포로 분리되는 중입니다.
+실시간 알림까지 지원하는 스터디 커뮤니티 플랫폼입니다. 
 
 `groovy-gateway-service`는 그중 **모든 외부 요청의 단일 진입점(API Gateway)**입니다.
 도메인 로직이나 DB 없이 경로 기반 라우팅만 수행하며, 5개 도메인 서비스가 폴리레포로 갈라진
@@ -19,23 +18,19 @@
 
 ### 라우팅 테이블
 
-YAML 리스트 순서가 매칭 우선순위입니다(구체적인 경로가 먼저 옵니다).
 
-| 우선순위 | Path 패턴 | 대상 서비스 |
-| :--- | :--- | :--- |
-| 1 | `/api/notifications/**` | notification-service `:8085` |
-| 2 | `/api/auth/**` | identity-service `:8081` |
-| 3 | `/api/users/me` (exact) | identity-service `:8081` |
-| 4 | `/api/studies/**` | study-service `:8082` |
-| 5 | `/api/users/me/studies` | study-service `:8082` |
-| 6 | `/api/users/me/applications` | study-service `:8082` |
-| 7 | `/api/calendars/**` | calendar-service `:8084` |
-| 8 | `/api/memoirs/**` | content-service `:8083` |
-| 9 | `/api/tags/**` | identity-service `:8081` |
+|  Path 패턴 | 대상 서비스 |
+|  :--- | :--- |
+| `/api/notifications/**` | notification-service `:8085` |
+| `/api/auth/**` | identity-service `:8081` |
+| `/api/users/me` (exact) | identity-service `:8081` |
+| `/api/studies/**` | study-service `:8082` |
+| `/api/users/me/studies` | study-service `:8082` |
+| `/api/users/me/applications` | study-service `:8082` |
+| `/api/calendars/**` | calendar-service `:8084` |
+| `/api/memoirs/**` | content-service `:8083` |
+| `/api/tags/**` | identity-service `:8081` |
 
-`/api/studies/**` 같은 와일드카드 라우트가 걸려 있어, `/api/studies/{id}/members`처럼 원래
-"서비스 간 전용" 목적의 엔드포인트도 게이트웨이를 거쳐 외부에서 직접 호출 가능한 상태입니다
-(알려진 심층방어 이슈로 문서화되어 있음).
 
 ## 3. 시스템 아키텍처
 
@@ -53,9 +48,6 @@ api-gateway :8080 (관리 포트 :8090)
    └─ /api/memoirs/**                  → content-service :8083
 ```
 
-이 서비스는 **DB를 갖지 않습니다.** 도메인 로직/데이터가 없는 순수 라우팅 계층이기 때문에,
-5개 서비스처럼 전용 스키마·계정을 발급받지 않습니다. `actuator`도 라우팅 대상 포트(`8080`)와
-섞이지 않도록 별도 관리 포트(`8090`)로 분리되어 있습니다.
 
 ## 4. 기술 스택
 
@@ -67,11 +59,6 @@ api-gateway :8080 (관리 포트 :8090)
 | Build Tool | Gradle (멀티모듈) |
 | Observability | Actuator + Micrometer Tracing(OTLP → Tempo) + Micrometer Prometheus |
 | Logging | `libs:observability`의 `logback-json.xml`을 리소스로 include하여 JSON 구조화 로그 → Loki |
-
-이 서비스는 Java 코드에서 실제로 import하는 공유 라이브러리가 없습니다 — `libs:observability`를
-의존하지만 리소스 include(`<include resource="observability/logback-json.xml"/>`) 방식으로만
-쓰이며, `event-contract`/`security-common`/DB 관련 의존성은 전혀 없습니다. Java 코드는
-`ApiGatewayApplication`, `TracingConfig`, `CorsConfig` 3개뿐입니다.
 
 ## 5. 다른 MSA 서비스와의 네트워크 호출 관계
 
@@ -86,8 +73,7 @@ CORS 처리(`CorsConfig`)와 분산 트레이싱 스팬 시작만 담당합니�
 
 ## 6. 로컬 실행 방법
 
-이 레포는 Gradle 멀티모듈 프로젝트이며(`libs/observability` + `services/api-gateway`), 별도
-docker-compose 파일은 포함하지 않습니다. 라우팅 대상 서비스가 없어도 게이트웨이 자체는
+라우팅 대상 서비스가 없어도 게이트웨이 자체는
 기동되지만, 실제 요청은 대상 서비스가 떠 있어야 응답을 받습니다.
 
 ```bash
@@ -103,21 +89,7 @@ docker run -p 8080:8080 -p 8090:8090 groovy-gateway-service
 > 게이트웨이 단독으로는 대부분의 요청이 대상 서비스 부재로 실패합니다. 5개 도메인 서비스까지
 > 포함한 전체 스택은 원본 `Groovy` 레포의 `docker-compose.local.yml` 사용을 권장합니다.
 
-## 7. 기존 모노레포에서 뗀 부분
-
-1. **레거시 단일 모놀리스** (`groovy/`, 삭제됨): 게이트웨이라는 개념 자체가 없었습니다 — 프론트가
-   단일 백엔드(`groovy` 애플리케이션)를 직접 호출했습니다.
-2. **모듈러 모놀리스 → MSA** (`backend/`, Gradle 멀티모듈 `groovy-backend-msa`): 5개 도메인이
-   독립 서비스로 흩어지면서, 프론트가 여러 주소를 알 필요 없게 해줄 단일 진입점으로
-   `backend/services/api-gateway/`가 신설되었습니다(레거시에 대응하는 원본 코드가 없는 **신규
-   서비스**).
-3. **폴리레포 분리** (지금 이 레포): 도메인 로직/DB가 없는 가장 단순한 구조 덕분에,
-   notification-service와 함께 **물리 레포 분리의 파일럿**으로 가장 먼저 이관되었습니다.
-   `backend/services/api-gateway/`와 `libs/observability`만 복사하면 되어 격리 난이도가
-   가장 낮았습니다. 격리 판단 근거는 원본 `Groovy` 레포의
-   `docs/transfer/groovy-gateway-service.md`에 기록되어 있습니다.
-
-## 8. 모니터링 스택에서 관측되는 부분
+## 7. 모니터링 스택에서 관측되는 부분
 
 - **Prometheus**: `job_name: api-gateway`가 라우팅 포트(`8080`)가 아닌 **관리 포트
   `api-gateway:8090`**의 `/actuator/prometheus`를 15초 주기로 스크래핑합니다. JVM, HTTP 요청
