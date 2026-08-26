@@ -11,18 +11,18 @@ spring:
             # (YAML 리스트 순서 = 매칭 우선순위), 그 외 나머지 경로는 매칭되는 라우트가 없으면
             # 게이트웨이가 그대로 404를 반환한다.
             - id: notification-service
-              uri: http://notification-service:8085
+              uri: ${NOTIFICATION_SERVICE_URL:http://notification-service:8085}
               predicates:
                 - Path=/api/notifications/**
             # MSA 전환(identity-service 추출): 인증(회원가입/로그인/로그아웃)이 여기로 온다.
             - id: identity-service-auth
-              uri: http://identity-service:8081
+              uri: ${IDENTITY_SERVICE_URL:http://identity-service:8081}
               predicates:
                 - Path=/api/auth/**
             # "/api/users/me"는 exact match(뒤에 /**가 없다)라 "/api/users/me/studies",
             # "/api/users/me/applications"는 매칭되지 않고 아래 study-service 라우트로 간다.
             - id: identity-service-users-me
-              uri: http://identity-service:8081
+              uri: ${IDENTITY_SERVICE_URL:http://identity-service:8081}
               predicates:
                 - Path=/api/users/me
             # MSA 전환(study-service 추출): 스터디 CRUD/신청/대기열이 여기로 온다. "/api/users/me/
@@ -30,30 +30,30 @@ spring:
             # backend/services/study-service/.../controller/UserStudyController.java 참고)도
             # study-service 소유가 됐으므로 함께 라우팅한다.
             - id: study-service
-              uri: http://study-service:8082
+              uri: ${STUDY_SERVICE_URL:http://study-service:8082}
               predicates:
                 - Path=/api/studies/**
             - id: study-service-users-me-studies
-              uri: http://study-service:8082
+              uri: ${STUDY_SERVICE_URL:http://study-service:8082}
               predicates:
                 - Path=/api/users/me/studies
             - id: study-service-users-me-applications
-              uri: http://study-service:8082
+              uri: ${STUDY_SERVICE_URL:http://study-service:8082}
               predicates:
                 - Path=/api/users/me/applications
             # MSA 전환(calendar-service 추출): 캘린더(개인 일정 + 스터디 약속)가 여기로 온다.
             - id: calendar-service
-              uri: http://calendar-service:8084
+              uri: ${CALENDAR_SERVICE_URL:http://calendar-service:8084}
               predicates:
                 - Path=/api/calendars/**
             # MSA 전환(content-service 추출): 회고록(+댓글/좋아요)이 여기로 온다.
             - id: content-service
-              uri: http://content-service:8083
+              uri: ${CONTENT_SERVICE_URL:http://content-service:8083}
               predicates:
                 - Path=/api/memoirs/**
             # MSA 전환(Tag 소유권 확정): 태그 마스터 목록 + 선호 태그가 identity-service로 온다.
             - id: identity-service-tags
-              uri: http://identity-service:8081
+              uri: ${IDENTITY_SERVICE_URL:http://identity-service:8081}
               predicates:
                 - Path=/api/tags/**
 
