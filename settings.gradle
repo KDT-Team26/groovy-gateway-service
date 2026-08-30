@@ -1,5 +1,6 @@
 rootProject.name = 'groovy-gateway-service'
 
-include 'libs:observability'
+// 공통 코드는 groovy-common 레포로 분리되어 GitHub Packages 로 배포된다.
+// api-gateway 는 라우팅 전용이라 observability 만 쓴다.
 
 include 'services:api-gateway'

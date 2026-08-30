@@ -43,6 +43,9 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
+          secrets: |
+            gpr_actor=${{ github.actor }}
+            gpr_token=${{ secrets.GPR_TOKEN }}
           # sha 태그만 쓴다(:latest 같은 가변 태그 없음) — GitOps는 groovy-infra의 values.yaml에
           # 박힌 정확한 태그로만 배포 대상을 판단하므로, 가변 태그가 있으면 오히려 혼란만 준다.
           # Docker Hub 리포지토리명은 groovy-gateway-service(이 레포명과 동일) — helm 차트 이름
