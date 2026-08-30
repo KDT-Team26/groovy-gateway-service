@@ -31,3 +31,6 @@ jobs:
 
       - name: Build (no test)
         run: ./gradlew build -x test --no-daemon
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GPR_TOKEN: ${{ secrets.GPR_TOKEN }}
